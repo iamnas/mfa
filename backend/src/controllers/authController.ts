@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import User, { UserType } from "../models/user";
 import { hash } from 'bcryptjs';
+import speakeasy from 'speakeasy';
+import qrCode from 'qrcode';
+import jwt from 'jsonwebtoken';
+import { Document } from "mongoose";
 
 const register = async (req: Request, res: Response) => {
     try {
@@ -73,15 +77,15 @@ const logout = async (req: Request, res: Response) => {
             return;
         }
 
-        req.logout((error)=>{
-            if(error){
+        req.logout((error) => {
+            if (error) {
                 res.status(500).json({ message: error, error: 'Error logging out user' });
                 return;
             }
-            
+
             res.status(200).json({ message: 'Logged out successfully' });
         });
-        
+
 
 
     } catch (error) {
@@ -96,7 +100,31 @@ const logout = async (req: Request, res: Response) => {
 const setup2FA = async (req: Request, res: Response) => {
     try {
 
-        // res.status(200).json({ isMfaActive });
+        const user= req.user  as UserType & Document;
+        if (!user) {
+            res.status(401).json({ message: 'User not found' });
+            return;
+        }
+
+        const secret = speakeasy.generateSecret();
+        console.log(secret);
+        
+        user.twoFactorSecret = secret.base32;
+        user.isMfaActive = true;
+        await user.save();
+
+        const url = speakeasy.otpauthURL({
+            secret: secret.base32,
+            label: user.name,
+            issuer: "mfa",
+            encoding: "base32",
+        })
+        const qrCodeUrl = qrCode.toDataURL(url);
+
+        res.status(200).json({ 
+            secret: secret.base32,
+            qrCodeUrl,
+        });
     } catch (error) {
         res.status(500).json({ message: error, error: 'Error setting up 2FA' });
     }
