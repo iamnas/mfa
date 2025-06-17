@@ -9,6 +9,12 @@ import { Document } from "mongoose";
 const register = async (req: Request, res: Response) => {
     try {
         const { email, password, name } = req.body;
+
+        if(!email || !password || !name){
+            res.status(400).json({ message: 'Please provide all the required fields' });
+            return;
+        }
+
         const user = await User.findOne({ email });
         if (user) {
             res.status(400).json({ message: 'User already exists' });
