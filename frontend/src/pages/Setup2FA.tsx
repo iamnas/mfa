@@ -1,8 +1,9 @@
+import TwoFASetup from "../components/TwoFASetup"
 
 
 function Setup2FA() {
   return (
-    <div>Setup2FA</div>
+    <TwoFASetup />
   )
 }
 
