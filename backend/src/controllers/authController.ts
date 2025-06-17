@@ -100,15 +100,14 @@ const logout = async (req: Request, res: Response) => {
 const setup2FA = async (req: Request, res: Response) => {
     try {
 
-        const user= req.user  as UserType & Document;
+        const user = req.user as UserType & Document;
         if (!user) {
             res.status(401).json({ message: 'User not found' });
             return;
         }
 
         const secret = speakeasy.generateSecret();
-        console.log(secret);
-        
+
         user.twoFactorSecret = secret.base32;
         user.isMfaActive = true;
         await user.save();
@@ -116,14 +115,17 @@ const setup2FA = async (req: Request, res: Response) => {
         const url = speakeasy.otpauthURL({
             secret: secret.base32,
             label: user.name,
-            issuer: "mfa",
+            issuer: "www.mfa.com",
             encoding: "base32",
         })
-        const qrCodeUrl = qrCode.toDataURL(url);
 
-        res.status(200).json({ 
+
+        const qrImageUrl = await qrCode.toDataURL(url);
+
+
+        res.status(200).json({
             secret: secret.base32,
-            qrCodeUrl,
+            qrCode: qrImageUrl,
         });
     } catch (error) {
         res.status(500).json({ message: error, error: 'Error setting up 2FA' });
@@ -134,6 +136,34 @@ const setup2FA = async (req: Request, res: Response) => {
 const verify2FA = async (req: Request, res: Response) => {
     try {
 
+        const { token } = req.body;
+        const user = req.user as UserType & Document;
+        if (!user) {
+            res.status(401).json({ message: 'User not found' });
+            return;
+        }
+
+        if (!user.twoFactorSecret) {
+            res.status(400).json({ message: '2FA secret not set for user' });
+            return;
+        }
+
+        const isVerifed = speakeasy.totp.verify({
+            secret: user.twoFactorSecret as string,
+            encoding: 'base32',
+            token: token,
+        });
+        if (!isVerifed) {
+            res.status(401).json({ message: 'Invalid 2FA token' });
+            return;
+        }
+
+        const jwtToken = jwt.sign({ userId: user._id, email: user.email }, process.env.JWT_SECRET as string, {
+            expiresIn: '1h',
+        });
+
+        res.status(200).json({ token: jwtToken, message: '2FA verified successfully' });
+
     } catch (error) {
         res.status(500).json({ message: error, error: 'Error verifying 2FA' });
     }
@@ -142,6 +172,23 @@ const verify2FA = async (req: Request, res: Response) => {
 // reset 2FA Routes
 const reset2FA = async (req: Request, res: Response) => {
     try {
+
+        const user = req.user as UserType & Document;
+        if (!user) {
+            res.status(401).json({ message: 'User not found' });
+            return;
+        }
+
+        if (!user.twoFactorSecret) {
+            res.status(400).json({ message: '2FA secret not set for user' });
+            return;
+        }
+        user.twoFactorSecret = null;
+        user.isMfaActive = false;
+        await user.save();
+
+        res.status(200).json({ message: '2FA reset successfully' });
+
 
     } catch (error) {
         res.status(500).json({ message: error, error: 'Error resetting 2FA' });

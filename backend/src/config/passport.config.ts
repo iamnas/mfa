@@ -10,7 +10,6 @@ passport.use(new LocalStrategy(
     try {
       const user = await User.findOne({ email: email });
 
-      console.log(user);
 
 
       if (!user) {
@@ -35,7 +34,7 @@ passport.use(new LocalStrategy(
 
 
 passport.serializeUser((user: any, done) => {
-  console.log(user);
+  
   done(null, user._id);
 });
 
