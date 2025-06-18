@@ -1,4 +1,4 @@
-import { Request, Response } from "express";
+import { NextFunction, Request, Response } from "express";
 import User, { UserType } from "../models/user";
 import { hash } from 'bcryptjs';
 import speakeasy from 'speakeasy';
@@ -10,7 +10,7 @@ const register = async (req: Request, res: Response) => {
     try {
         const { email, password, name } = req.body;
 
-        if(!email || !password || !name){
+        if (!email || !password || !name) {
             res.status(400).json({ message: 'Please provide all the required fields' });
             return;
         }
@@ -76,29 +76,71 @@ const authStatus = async (req: Request, res: Response) => {
     }
 };
 
-const logout = async (req: Request, res: Response) => {
+// const logout = async (req: Request, res: Response) => {
+//     try {
+//         if (!req.user) {
+//             res.status(401).json({ message: 'Unauthorized user' });
+//             return;
+//         }
+
+//         req.logout((error) => {
+//             if (error) {
+//                 res.status(500).json({ message: error, error: 'Error logging out user' });
+//                 return;
+//             }
+
+//             req.session.destroy((error) => {
+//                 if (error) {
+//                     res.status(500).json({ message: error, error: 'Error logging out user' });
+//                     return;
+//                 }
+
+//                 res.clearCookie('connect.sid');
+
+//                 res.status(200).json({ message: 'Logged out successfully' });
+//             });
+
+//             res.status(200).json({ message: 'Logged out successfully' });
+//         });
+
+
+
+//     } catch (error) {
+//         res.status(500).json({ message: error, error: 'Error logging out user' });
+//     }
+// };
+
+const logout = async (req: Request, res: Response, next: NextFunction) => {
     try {
         if (!req.user) {
-            res.status(401).json({ message: 'Unauthorized user' });
-            return;
+            {
+                res.status(401).json({ message: 'Unauthorized user' });
+                return;
+            }
         }
 
-        req.logout((error) => {
-            if (error) {
-                res.status(500).json({ message: error, error: 'Error logging out user' });
+        req.logout((err) => {
+            if (err) {
+                next(err);
                 return;
             }
 
-            res.status(200).json({ message: 'Logged out successfully' });
+            req.session.destroy((err) => {
+                if (err) {
+                    next(err);
+                    return;
+                }
+
+                res.clearCookie('connect.sid');
+                res.status(200).json({ message: 'Logged out successfully' });
+
+            });
         });
-
-
-
     } catch (error) {
+        next(error);
         res.status(500).json({ message: error, error: 'Error logging out user' });
     }
 };
-
 
 // 2FA Routes
 
@@ -107,6 +149,7 @@ const setup2FA = async (req: Request, res: Response) => {
     try {
 
         const user = req.user as UserType & Document;
+
         if (!user) {
             res.status(401).json({ message: 'User not found' });
             return;

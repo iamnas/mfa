@@ -35,6 +35,7 @@ export const setup2FA = async () => {
     const response = await api.post('/auth/2fa/setup', {}, {
         withCredentials: true,
     })
+    
     return response.data
 }
 

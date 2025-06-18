@@ -10,9 +10,6 @@ export default function LoginPage() {
 
     const handleLoginSuccess = (user:User) => {
         login(user);
-
-        console.log(user);
-
         if(!user.isMfaActive){
             navigate("/setup-2fa");
         }else{
